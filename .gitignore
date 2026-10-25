@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+
+# planilhas reais nunca entram no repositório; só as geradas em examples/
+*.xlsx
+*.xls
+*.csv
+!examples/*.csv
+
+# gerado pelo demo
+examples/contas_a_pagar_exemplo.xlsx
