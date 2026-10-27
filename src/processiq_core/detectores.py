@@ -25,8 +25,8 @@ def _sufixo_sugestao(sug) -> str:
     if sug is None:
         return ""
     if not sug.nome:
-        return " → nomes sem relação: confira o CNPJ antes de unificar"
-    return f" → sugestão: manter '{sug.nome}'"
+        return " — nomes sem relação: confira o CNPJ antes de unificar"
+    return f" — sugestão: manter '{sug.nome}'"
 
 
 def detectar_fornecedores_duplicados(titulos: list[Titulo], similaridade_minima: int = 80) -> list[Alerta]:

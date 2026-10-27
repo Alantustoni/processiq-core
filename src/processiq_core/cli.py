@@ -33,9 +33,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--json", action="store_true", help="saída em JSON (para integrar com o painel)")
     p.add_argument("--excel", metavar="SAIDA.xlsx", help="grava um relatório Excel com as linhas problemáticas marcadas")
     p.add_argument("--de-para", metavar="SAIDA.csv",
-                   help="grava a tabela de unificação de fornecedores (de → para, CNPJ sugerido, motivo)")
+                   help="grava a tabela de unificação de fornecedores (de/para, CNPJ sugerido, motivo)")
     p.add_argument("--hoje", type=date.fromisoformat, default=None, help="data de referência (padrão: hoje)")
     args = p.parse_args(argv)
+    # console legado do Windows (cp1252) não tem todos os caracteres: troca em vez de quebrar
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(errors="replace")
 
     try:
         titulos, mapa = ler_planilha(args.arquivo)

@@ -28,8 +28,8 @@ colunas reconhecidas: id=col1, fornecedor=col2, documento=col3, valor=col5, venc
 
 !! [titulo_duplicado] 2 lançamentos iguais para 'Mercado Central Ltda': R$ 4,820.00 vencendo em 12/05/2026 (linhas 4, 7)
 !! [vencido] 'Transportes Fictícios S/A' venceu há 45 dia(s) (26/03/2026) e não consta como pago
-!  [fornecedor_duplicado] CNPJ raiz 90100200 aparece com 2 nomes diferentes: MERC CENTRAL ALIMENTOS | MERCADO CENTRAL → sugestão: manter 'Mercado Central Ltda'
-!  [fornecedor_duplicado] CNPJ raiz 90100500 aparece com 2 nomes diferentes: SERVICOS DEMONSTRACAO | TRANSPORTES FICTICIOS → nomes sem relação: confira o CNPJ antes de unificar
+!  [fornecedor_duplicado] CNPJ raiz 90100200 aparece com 2 nomes diferentes: MERC CENTRAL ALIMENTOS | MERCADO CENTRAL — sugestão: manter 'Mercado Central Ltda'
+!  [fornecedor_duplicado] CNPJ raiz 90100500 aparece com 2 nomes diferentes: SERVICOS DEMONSTRACAO | TRANSPORTES FICTICIOS — nomes sem relação: confira o CNPJ antes de unificar
 !  [valor_suspeito] 'Distribuidora Alpha': R$ 61,500.00 é 5.0x a mediana do fornecedor (R$ 12,200.00) — confira
 -  [documento_invalido] CNPJ/CPF inválido na linha 14 ('12345678000100') para 'Peças Exemplo Eireli'
 ```
