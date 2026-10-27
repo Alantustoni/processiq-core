@@ -16,8 +16,11 @@ Trabalho com contas a pagar dentro de um ERP, com CNAB240, DDA e conciliação b
 
 ```bash
 pip install git+https://github.com/Alantustoni/processiq-core
-processiq contas_a_pagar.xlsx
+python examples/demo.py                                 # gera uma planilha sintética cheia de problemas
+processiq examples/contas_a_pagar_exemplo.xlsx --hoje 2026-05-10
 ```
+
+Com a sua própria planilha: `processiq contas_a_pagar.xlsx`.
 
 ```
 15 títulos · total R$ 119,625.00 · vencido R$ 14,400.00 · saúde 8/100
@@ -41,8 +44,6 @@ titulos, colunas = ler_planilha("contas_a_pagar.xlsx")
 alertas = analisar(titulos)
 print(resumo(titulos, alertas)["saude_operacional"])
 ```
-
-Para ver tudo funcionando com uma planilha sintética cheia de problemas plantados: `python examples/demo.py`.
 
 ## O que ele detecta
 
