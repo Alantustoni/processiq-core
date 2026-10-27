@@ -20,7 +20,7 @@ python examples/demo.py                                 # gera uma planilha sint
 processiq examples/contas_a_pagar_exemplo.xlsx --hoje 2026-05-10
 ```
 
-Com a sua própria planilha: `processiq contas_a_pagar.xlsx`.
+Com a sua própria planilha: `processiq contas_a_pagar.xlsx`. Para um relatório que o financeiro abre e já sabe onde olhar: `processiq contas_a_pagar.xlsx --excel relatorio.xlsx`.
 
 ```
 15 títulos · total R$ 119,625.00 · vencido R$ 14,400.00 · saúde 8/100
@@ -54,7 +54,7 @@ pip install "processiq-core[api] @ git+https://github.com/Alantustoni/processiq-
 uvicorn processiq_core.api:app --reload
 ```
 
-Swagger em `http://localhost:8000/docs`. Um único endpoint faz o trabalho:
+Swagger em `http://localhost:8000/docs`. O endpoint principal:
 
 ```bash
 curl -X POST "http://localhost:8000/analisar?hoje=2026-05-10" \
@@ -80,11 +80,29 @@ curl -X POST "http://localhost:8000/analisar?hoje=2026-05-10" \
 | Método | Rota | O que faz |
 |---|---|---|
 | `POST` | `/analisar` | recebe `.xlsx`/`.csv` (multipart), devolve colunas, resumo e alertas; `?hoje=AAAA-MM-DD` fixa a data; `?incluir_titulos=true` devolve também os títulos lidos |
+| `POST` | `/analisar/excel` | mesma análise, devolvida como relatório `.xlsx` com as linhas marcadas (`Content-Disposition: attachment`) |
 | `GET` | `/health` | versão e status, para o orquestrador |
 
 Erros chegam como JSON com código certo: `415` formato não suportado, `413` acima de 10 MB, `422` planilha ilegível (a mensagem do motor vai junto: "cabeçalho não reconhecido: preciso de colunas de fornecedor, valor e vencimento").
 
 Para subir em container: `docker build -t processiq-core . && docker run -p 8000:8000 processiq-core`.
+
+## Relatório Excel
+
+`--excel` (CLI) ou `POST /analisar/excel` (API) devolvem um `.xlsx` com três abas:
+
+| Aba | Conteúdo |
+|---|---|
+| **Títulos** | um título por linha, colunas normalizadas + `Alertas` e `Severidade`; a **linha inteira recebe a cor da pior severidade** (laranja crítica, amarelo alta, azul média, verde baixa); filtro e painel congelado |
+| **Alertas** | um alerta por linha: severidade, tipo, mensagem, linhas e títulos de origem |
+| **Resumo** | totais, vencido, próximos 7 dias, saúde operacional, contagem por severidade e por tipo |
+
+```bash
+curl -X POST "http://localhost:8000/analisar/excel?hoje=2026-05-10" \
+     -F "arquivo=@examples/contas_a_pagar_exemplo.xlsx" -o relatorio.xlsx
+```
+
+A exportação (`exportacao.py`) recebe títulos e alertas já prontos e só os desenha — nenhuma regra de negócio vive nela.
 
 ## O que ele detecta
 
@@ -127,8 +145,8 @@ Duas camadas, com uma fronteira explícita:
             app.py só recebe upload, chama o motor e traduz erro em status HTTP.
 ```
 
-- **O motor não sabe que a API existe.** `detectores.py` recebe `list[Titulo]` e devolve `list[Alerta]`; é testado direto, sem subir servidor (58 testes).
-- **A API não contém regra.** Nenhum `if` de negócio em `app.py`; ela valida tamanho e extensão, chama `ler_planilha → analisar → resumo` e converte. Testada com `TestClient` enviando planilhas reais (10 testes).
+- **O motor não sabe que a API existe.** `detectores.py` recebe `list[Titulo]` e devolve `list[Alerta]`; é testado direto, sem subir servidor (62 testes).
+- **A API não contém regra.** Nenhum `if` de negócio em `app.py`; ela valida tamanho e extensão, chama `ler_planilha → analisar → resumo` e converte. Testada com `TestClient` enviando planilhas reais (12 testes).
 - **Mesmo resultado por qualquer porta de entrada.** CLI e API chamam as mesmas funções; o demo roda nas duas no CI.
 - **O painel escala separado.** O front do ProcessIQ só precisa do contrato em `schemas.py` (exposto no OpenAPI); o motor pode mudar por dentro sem quebrar o painel, e vice-versa.
 
@@ -137,12 +155,13 @@ src/processiq_core/
 ├── normalizacao.py   CNPJ/CPF, nomes, valores, datas (stdlib)
 ├── leitor.py         .xlsx/.csv → lista de Titulo + mapa de colunas
 ├── detectores.py     as 7 regras + analisar() + resumo()
+├── exportacao.py     relatório .xlsx (3 abas, linhas coloridas) a partir de títulos + alertas
 ├── modelo.py         Titulo, Alerta, enums
-├── cli.py            comando `processiq`
+├── cli.py            comando `processiq` (--json, --excel)
 └── api/
-    ├── app.py        FastAPI: /analisar, /health, tratamento de erro
+    ├── app.py        FastAPI: /analisar, /analisar/excel, /health, tratamento de erro
     └── schemas.py    contratos Pydantic (AnaliseOut, AlertaOut, Resumo…)
-tests/                68 testes (pytest): 58 do motor + 10 da API
+tests/                74 testes (pytest): 62 do motor + 12 da API
 examples/demo.py      gera planilha sintética e roda o motor; roda no CI como teste de fumaça
 Dockerfile            imagem slim com o extra [api]
 ```
@@ -159,7 +178,7 @@ CI em Ubuntu e Windows, Python 3.11 a 3.13; além do pytest, o workflow sobe a A
 ## Roadmap
 
 - [x] API HTTP (FastAPI) para o painel do ProcessIQ consumir
-- [ ] Exportação do relatório em Excel com as linhas marcadas
+- [x] Exportação do relatório em Excel com as linhas marcadas
 - [ ] Sugestão de fornecedor canônico ao unificar duplicados
 - [ ] Leitura de extrato bancário para cruzar pago × previsto (reaproveitando a lógica do [contas-a-pagar-suite](https://github.com/Alantustoni/contas-a-pagar-suite))
 
