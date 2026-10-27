@@ -9,6 +9,7 @@ Aqui só: receber o arquivo, chamar o motor, converter para JSON, tratar erro.
 
 from __future__ import annotations
 
+import os
 import tempfile
 from datetime import date
 from pathlib import Path
@@ -68,11 +69,18 @@ async def analisar_planilha(
     if not conteudo:
         raise HTTPException(422, "arquivo vazio")
 
-    # o leitor trabalha com caminho; gravamos num temporário que some ao sair do bloco
-    with tempfile.NamedTemporaryFile(suffix=sufixo, delete=True) as tmp:
-        tmp.write(conteudo)
-        tmp.flush()
-        titulos, mapa = ler_planilha(tmp.name)
+    # o leitor trabalha com caminho. No Windows um NamedTemporaryFile aberto fica
+    # bloqueado para outros leitores, então gravamos, fechamos, lemos e apagamos.
+    fd, caminho_tmp = tempfile.mkstemp(suffix=sufixo)
+    try:
+        with os.fdopen(fd, "wb") as tmp:
+            tmp.write(conteudo)
+        titulos, mapa = ler_planilha(caminho_tmp)
+    finally:
+        try:
+            os.unlink(caminho_tmp)
+        except OSError:
+            pass
 
     ref = hoje or date.today()
     alertas = analisar(titulos, hoje=ref)
