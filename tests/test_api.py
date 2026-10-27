@@ -107,3 +107,22 @@ def test_openapi_documenta_o_endpoint():
     spec = client.get("/openapi.json").json()
     assert "/analisar" in spec["paths"]
     assert "AnaliseOut" in spec["components"]["schemas"]
+
+
+def test_analisar_excel_devolve_xlsx_com_linhas_marcadas():
+    from openpyxl import load_workbook
+    r = client.post("/analisar/excel", params={"hoje": "2026-05-10"},
+                    files={"arquivo": ("cap.xlsx", _planilha_padrao(), "application/octet-stream")})
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"].startswith("application/vnd.openxmlformats")
+    assert 'filename="cap_processiq.xlsx"' in r.headers["content-disposition"]
+    wb = load_workbook(BytesIO(r.content))
+    assert wb.sheetnames == ["Títulos", "Alertas", "Resumo"]
+    ws = wb["Títulos"]
+    sev = {ws.cell(i, 1).value: ws.cell(i, 10).value for i in range(2, ws.max_row + 1)}
+    assert sev[2] == "critica" and sev[3] == "critica"           # NF duplicada nas linhas 2 e 3
+
+
+def test_analisar_excel_formato_invalido_415():
+    r = client.post("/analisar/excel", files={"arquivo": ("x.pdf", b"%PDF", "application/pdf")})
+    assert r.status_code == 415

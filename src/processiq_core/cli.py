@@ -1,4 +1,4 @@
-"""Uso: processiq caminho/para/planilha.xlsx [--json] [--hoje AAAA-MM-DD]"""
+"""Uso: processiq caminho/para/planilha.xlsx [--json] [--excel relatorio.xlsx] [--hoje AAAA-MM-DD]"""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import sys
 from datetime import date
 
 from .detectores import analisar, resumo
+from .exportacao import exportar_excel
 from .leitor import ErroLeitura, ler_planilha
 
 _ICONE = {"critica": "!!", "alta": "! ", "media": "- ", "baixa": ". "}
@@ -17,6 +18,7 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="processiq", description="Analisa uma planilha de contas a pagar.")
     p.add_argument("arquivo", help=".xlsx ou .csv")
     p.add_argument("--json", action="store_true", help="saída em JSON (para integrar com o painel)")
+    p.add_argument("--excel", metavar="SAIDA.xlsx", help="grava um relatório Excel com as linhas problemáticas marcadas")
     p.add_argument("--hoje", type=date.fromisoformat, default=None, help="data de referência (padrão: hoje)")
     args = p.parse_args(argv)
 
@@ -28,6 +30,10 @@ def main(argv: list[str] | None = None) -> int:
 
     alertas = analisar(titulos, hoje=args.hoje)
     res = resumo(titulos, alertas, hoje=args.hoje)
+
+    if args.excel:
+        destino = exportar_excel(titulos, alertas, res, args.hoje or date.today(), args.excel, origem=args.arquivo)
+        print(f"relatório gravado em {destino}", file=sys.stderr)
 
     if args.json:
         json.dump({"colunas": mapa, "resumo": res, "alertas": [a.to_dict() for a in alertas]},

@@ -15,10 +15,11 @@ from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from .. import __version__
 from ..detectores import analisar, resumo
+from ..exportacao import exportar_excel_bytes
 from ..leitor import ErroLeitura, ler_planilha
 from .schemas import AlertaOut, AnaliseOut, ColunasReconhecidas, Erro, Resumo, TituloOut
 
@@ -46,18 +47,8 @@ def health() -> dict:
     return {"status": "ok", "versao": __version__}
 
 
-@app.post(
-    "/analisar",
-    response_model=AnaliseOut,
-    responses={413: {"model": Erro}, 415: {"model": Erro}, 422: {"model": Erro}},
-    tags=["análise"],
-    summary="Analisa uma planilha de contas a pagar",
-)
-async def analisar_planilha(
-    arquivo: UploadFile = File(..., description=".xlsx ou .csv"),
-    hoje: date | None = Query(default=None, description="data de referência (padrão: hoje)"),
-    incluir_titulos: bool = Query(default=False, description="devolve também os títulos lidos"),
-) -> AnaliseOut:
+async def _ler_upload(arquivo: UploadFile):
+    """Valida e lê o upload; devolve (nome, titulos, mapa). Compartilhado pelos endpoints."""
     nome = arquivo.filename or "planilha"
     sufixo = Path(nome).suffix.lower()
     if sufixo not in EXTENSOES:
@@ -81,7 +72,22 @@ async def analisar_planilha(
             os.unlink(caminho_tmp)
         except OSError:
             pass
+    return nome, titulos, mapa
 
+
+@app.post(
+    "/analisar",
+    response_model=AnaliseOut,
+    responses={413: {"model": Erro}, 415: {"model": Erro}, 422: {"model": Erro}},
+    tags=["análise"],
+    summary="Analisa uma planilha de contas a pagar",
+)
+async def analisar_planilha(
+    arquivo: UploadFile = File(..., description=".xlsx ou .csv"),
+    hoje: date | None = Query(default=None, description="data de referência (padrão: hoje)"),
+    incluir_titulos: bool = Query(default=False, description="devolve também os títulos lidos"),
+) -> AnaliseOut:
+    nome, titulos, mapa = await _ler_upload(arquivo)
     ref = hoje or date.today()
     alertas = analisar(titulos, hoje=ref)
     res = resumo(titulos, alertas, hoje=ref)
@@ -93,4 +99,28 @@ async def analisar_planilha(
         resumo=Resumo(**res),
         alertas=[AlertaOut.de_alerta(a) for a in alertas],
         titulos=[TituloOut.de_titulo(t) for t in titulos] if incluir_titulos else None,
+    )
+
+
+@app.post(
+    "/analisar/excel",
+    responses={200: {"content": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}}},
+               413: {"model": Erro}, 415: {"model": Erro}, 422: {"model": Erro}},
+    tags=["análise"],
+    summary="Mesma análise, devolvida como relatório Excel com as linhas marcadas",
+)
+async def analisar_planilha_excel(
+    arquivo: UploadFile = File(..., description=".xlsx ou .csv"),
+    hoje: date | None = Query(default=None, description="data de referência (padrão: hoje)"),
+) -> Response:
+    nome, titulos, _ = await _ler_upload(arquivo)
+    ref = hoje or date.today()
+    alertas = analisar(titulos, hoje=ref)
+    res = resumo(titulos, alertas, hoje=ref)
+    conteudo = exportar_excel_bytes(titulos, alertas, res, ref, origem=nome)
+    saida = Path(nome).stem + "_processiq.xlsx"
+    return Response(
+        content=conteudo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{saida}"'},
     )
