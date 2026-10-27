@@ -117,7 +117,7 @@ def test_analisar_excel_devolve_xlsx_com_linhas_marcadas():
     assert r.headers["content-type"].startswith("application/vnd.openxmlformats")
     assert 'filename="cap_processiq.xlsx"' in r.headers["content-disposition"]
     wb = load_workbook(BytesIO(r.content))
-    assert wb.sheetnames == ["Títulos", "Alertas", "Resumo"]
+    assert wb.sheetnames == ["Títulos", "Alertas", "Unificação", "Resumo"]
     ws = wb["Títulos"]
     sev = {ws.cell(i, 1).value: ws.cell(i, 10).value for i in range(2, ws.max_row + 1)}
     assert sev[2] == "critica" and sev[3] == "critica"           # NF duplicada nas linhas 2 e 3
@@ -126,3 +126,19 @@ def test_analisar_excel_devolve_xlsx_com_linhas_marcadas():
 def test_analisar_excel_formato_invalido_415():
     r = client.post("/analisar/excel", files={"arquivo": ("x.pdf", b"%PDF", "application/pdf")})
     assert r.status_code == 415
+
+
+def test_analisar_devolve_tabela_de_unificacao():
+    planilha = _xlsx([
+        ["NF", "Fornecedor", "CNPJ", "Valor", "Vencimento"],
+        [1, "Distribuidora Alpha Ltda", CNPJ, 100.0, date(2026, 6, 1)],
+        [2, "Distrib. Alpha", "90.100.200/0025-86", 200.0, date(2026, 6, 2)],
+    ])
+    r = client.post("/analisar", params={"hoje": "2026-05-10"},
+                    files={"arquivo": ("cap.xlsx", planilha, "application/octet-stream")})
+    assert r.status_code == 200, r.text
+    u = r.json()["unificacao"]
+    assert u == [{"acao": "unificar", "de": "Distrib. Alpha", "para": "Distribuidora Alpha Ltda",
+                  "documento": "90100200000109", "ocorrencias": 1, "linhas": [3], "criterio": "cnpj",
+                  "motivo": u[0]["motivo"]}]
+    assert "por extenso" in u[0]["motivo"]

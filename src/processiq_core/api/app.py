@@ -18,10 +18,11 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse, Response
 
 from .. import __version__
+from ..canonico import de_para
 from ..detectores import analisar, resumo
 from ..exportacao import exportar_excel_bytes
 from ..leitor import ErroLeitura, ler_planilha
-from .schemas import AlertaOut, AnaliseOut, ColunasReconhecidas, Erro, Resumo, TituloOut
+from .schemas import AlertaOut, AnaliseOut, ColunasReconhecidas, DeParaOut, Erro, Resumo, TituloOut
 
 TAMANHO_MAXIMO = 10 * 1024 * 1024          # 10 MB: planilha de contas a pagar de PME cabe folgado
 EXTENSOES = {".xlsx", ".xlsm", ".csv", ".txt"}
@@ -98,6 +99,7 @@ async def analisar_planilha(
         colunas=ColunasReconhecidas(**mapa),
         resumo=Resumo(**res),
         alertas=[AlertaOut.de_alerta(a) for a in alertas],
+        unificacao=[DeParaOut(**row) for row in de_para(alertas)],
         titulos=[TituloOut.de_titulo(t) for t in titulos] if incluir_titulos else None,
     )
 

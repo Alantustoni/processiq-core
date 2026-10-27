@@ -25,6 +25,6 @@ jobs:
           pip install .[api]
           uvicorn processiq_core.api:app --port 8000 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/health && break || sleep 1; done
-          curl -sf -X POST "http://127.0.0.1:8000/analisar?hoje=2026-05-10" -F "arquivo=@examples/contas_a_pagar_exemplo.xlsx" | python -c "import json,sys; d=json.load(sys.stdin); assert d['resumo']['alertas']>0; print('alertas:', d['resumo']['alertas'])"
+          curl -sf -X POST "http://127.0.0.1:8000/analisar?hoje=2026-05-10" -F "arquivo=@examples/contas_a_pagar_exemplo.xlsx" | python -c "import json,sys; d=json.load(sys.stdin); assert d['resumo']['alertas']>0 and d['unificacao']; print('alertas:', d['resumo']['alertas'], 'unificacao:', len(d['unificacao']))"
           curl -sf -X POST "http://127.0.0.1:8000/analisar/excel?hoje=2026-05-10" -F "arquivo=@examples/contas_a_pagar_exemplo.xlsx" -o relatorio.xlsx
-          python -c "from openpyxl import load_workbook; wb=load_workbook('relatorio.xlsx'); assert wb.sheetnames==['Títulos','Alertas','Resumo']; print(wb.sheetnames)"
+          python -c "from openpyxl import load_workbook; wb=load_workbook('relatorio.xlsx'); assert wb.sheetnames==['Títulos','Alertas','Unificação','Resumo']; print(wb.sheetnames)"

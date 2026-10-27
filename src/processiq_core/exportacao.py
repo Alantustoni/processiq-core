@@ -1,9 +1,11 @@
 """Exporta o resultado da análise para um .xlsx que o financeiro abre e já sabe onde olhar.
 
-Três abas:
+Quatro abas:
   • Títulos  — um título por linha, com as colunas originais normalizadas mais
                `Alertas` e `Severidade`; a linha inteira recebe a cor da pior severidade.
   • Alertas  — um alerta por linha (tipo, severidade, mensagem, linhas da planilha de origem).
+  • Unificação — de → para dos fornecedores duplicados: grafia atual, grafia a manter,
+               CNPJ sugerido e o motivo; casos sem relação aparecem como "conferir".
   • Resumo   — indicadores do `resumo()` e legenda de cores.
 
 Usa só openpyxl (já é dependência do leitor). Nenhuma regra de negócio aqui:
@@ -23,7 +25,9 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
+from .canonico import de_para
 from .modelo import Alerta, Severidade, Titulo
+from .normalizacao import formatar_documento
 
 # cor de preenchimento por severidade (tons claros, legíveis em impressão)
 CORES = {
@@ -105,6 +109,22 @@ def _aba_alertas(wb: Workbook, alertas: list[Alerta]) -> None:
     ws.column_dimensions["C"].width = 90
 
 
+CORES_ACAO = {"unificar": "DDEBF7", "padronizar grafia": "E2EFDA", "conferir": "FFE699"}
+
+
+def _aba_unificacao(wb: Workbook, alertas: list[Alerta]) -> None:
+    ws = wb.create_sheet("Unificação")
+    _cabecalho(ws, ["Ação", "De (grafia atual)", "Para (manter)", "CNPJ sugerido",
+                    "Ocorrências", "Linhas", "Critério", "Motivo"])
+    for row in de_para(alertas):
+        ws.append([row["acao"], row["de"], row["para"], formatar_documento(row["documento"]),
+                   row["ocorrencias"], ", ".join(str(l) for l in row["linhas"]),
+                   row["criterio"], row["motivo"]])
+        ws.cell(ws.max_row, 1).fill = PatternFill("solid", fgColor=CORES_ACAO[row["acao"]])
+    _ajustar_larguras(ws)
+    ws.column_dimensions["H"].width = 70
+
+
 def _aba_resumo(wb: Workbook, resumo: dict, hoje: date, origem: str) -> None:
     ws = wb.create_sheet("Resumo")
     ws["A1"] = "ProcessIQ — análise de contas a pagar"
@@ -148,6 +168,7 @@ def gerar_workbook(titulos: list[Titulo], alertas: list[Alerta], resumo: dict,
     wb = Workbook()
     _aba_titulos(wb, titulos, alertas)
     _aba_alertas(wb, alertas)
+    _aba_unificacao(wb, alertas)
     _aba_resumo(wb, resumo, hoje, origem)
     return wb
 

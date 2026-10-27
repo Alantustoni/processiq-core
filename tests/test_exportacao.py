@@ -35,7 +35,7 @@ def test_gera_tres_abas_e_marca_linhas(tmp_path: Path):
     titulos, alertas, res = _cenario()
     destino = exportar_excel(titulos, alertas, res, HOJE, tmp_path / "rel.xlsx", origem="cap.xlsx")
     wb = load_workbook(destino)
-    assert wb.sheetnames == ["Títulos", "Alertas", "Resumo"]
+    assert wb.sheetnames == ["Títulos", "Alertas", "Unificação", "Resumo"]
 
     ws = wb["Títulos"]
     cab = [c.value for c in ws[1]]

@@ -75,6 +75,16 @@ def normalizar_documento(doc: str | int | None) -> str:
     return d if cnpj_valido(d) else ""
 
 
+def formatar_documento(doc: str | int | None) -> str:
+    """'90100200000109' → '90.100.200/0001-09'; CPF → '123.456.789-09'; inválido → ''."""
+    d = normalizar_documento(doc)
+    if len(d) == 14:
+        return f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}"
+    if len(d) == 11:
+        return f"{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}"
+    return ""
+
+
 def raiz_cnpj(cnpj: str | int | None) -> str:
     """Primeiros 8 dígitos: identifica a empresa independentemente da filial."""
     d = normalizar_documento(cnpj)

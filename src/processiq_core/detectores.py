@@ -13,12 +13,21 @@ from statistics import median
 
 from rapidfuzz import fuzz
 
+from .canonico import sugerir_canonico
 from .modelo import Alerta, Severidade, TipoAlerta, Titulo
 from .normalizacao import raiz_cnpj
 
 # --------------------------------------------------------------------------- #
 # Fornecedor duplicado
 # --------------------------------------------------------------------------- #
+
+def _sufixo_sugestao(sug) -> str:
+    if sug is None:
+        return ""
+    if not sug.nome:
+        return " → nomes sem relação: confira o CNPJ antes de unificar"
+    return f" → sugestão: manter '{sug.nome}'"
+
 
 def detectar_fornecedores_duplicados(titulos: list[Titulo], similaridade_minima: int = 80) -> list[Alerta]:
     """Mesmo fornecedor cadastrado com grafias diferentes.
@@ -42,13 +51,16 @@ def detectar_fornecedores_duplicados(titulos: list[Titulo], similaridade_minima:
             continue
         nomes = sorted(grupos)
         envolvidos = [t for g in grupos.values() for t in g]
+        sug = sugerir_canonico(envolvidos)
         alertas.append(Alerta(
             tipo=TipoAlerta.FORNECEDOR_DUPLICADO,
             severidade=Severidade.ALTA,
-            mensagem=f"CNPJ raiz {raiz} aparece com {len(nomes)} nomes diferentes: " + " | ".join(nomes),
+            mensagem=f"CNPJ raiz {raiz} aparece com {len(nomes)} nomes diferentes: " + " | ".join(nomes)
+                     + _sufixo_sugestao(sug),
             titulos=tuple(t.id for t in envolvidos),
             linhas=tuple(t.linha for t in envolvidos),
-            detalhes={"raiz_cnpj": raiz, "nomes": nomes, "criterio": "cnpj"},
+            detalhes={"raiz_cnpj": raiz, "nomes": nomes, "criterio": "cnpj",
+                      "canonico": sug.to_dict() if sug else None},
         ))
 
     # 2) por similaridade de nome (só entre fornecedores que não compartilham raiz)
@@ -72,13 +84,16 @@ def detectar_fornecedores_duplicados(titulos: list[Titulo], similaridade_minima:
             score = int(fuzz.WRatio(a, b))
             if score >= similaridade_minima:
                 envolvidos = por_nome[a] + por_nome[b]
+                sug = sugerir_canonico(envolvidos)
                 alertas.append(Alerta(
                     tipo=TipoAlerta.FORNECEDOR_DUPLICADO,
                     severidade=Severidade.MEDIA,
-                    mensagem=f"Nomes muito parecidos ({score}%): '{a}' e '{b}' — confira se é o mesmo fornecedor",
+                    mensagem=f"Nomes muito parecidos ({score}%): '{a}' e '{b}' — confira se é o mesmo fornecedor"
+                             + _sufixo_sugestao(sug),
                     titulos=tuple(t.id for t in envolvidos),
                     linhas=tuple(t.linha for t in envolvidos),
-                    detalhes={"nomes": [a, b], "similaridade": score, "criterio": "nome"},
+                    detalhes={"nomes": [a, b], "similaridade": score, "criterio": "nome",
+                              "canonico": sug.to_dict() if sug else None},
                 ))
                 ja_pareados.add((a, b))
     return alertas

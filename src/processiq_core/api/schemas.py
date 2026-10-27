@@ -54,6 +54,19 @@ class TituloOut(BaseModel):
         )
 
 
+class DeParaOut(BaseModel):
+    """Uma grafia de fornecedor a trocar (ou a conferir) para unificar o cadastro."""
+
+    acao: str = Field(description="'unificar', 'padronizar grafia' ou 'conferir'")
+    de: str
+    para: str = Field(description="grafia a manter ('' quando acao='conferir')")
+    documento: str = Field(description="CNPJ/CPF sugerido, só dígitos")
+    ocorrencias: int
+    linhas: list[int]
+    criterio: str
+    motivo: str
+
+
 class Resumo(BaseModel):
     titulos: int
     valor_total: str
@@ -71,6 +84,9 @@ class AnaliseOut(BaseModel):
     colunas: ColunasReconhecidas
     resumo: Resumo
     alertas: list[AlertaOut]
+    unificacao: list[DeParaOut] = Field(
+        default_factory=list, description="de → para dos fornecedores duplicados, com o motivo da escolha"
+    )
     titulos: list[TituloOut] | None = Field(
         default=None, description="presente só quando ?incluir_titulos=true"
     )
