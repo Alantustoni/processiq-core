@@ -19,3 +19,10 @@ jobs:
       - run: pip install .[dev]
       - run: python -m pytest -q
       - run: python examples/demo.py
+      - name: API responde
+        shell: bash
+        run: |
+          pip install .[api]
+          uvicorn processiq_core.api:app --port 8000 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8000/health && break || sleep 1; done
+          curl -sf -X POST "http://127.0.0.1:8000/analisar?hoje=2026-05-10" -F "arquivo=@examples/contas_a_pagar_exemplo.xlsx" | python -c "import json,sys; d=json.load(sys.stdin); assert d['resumo']['alertas']>0; print('alertas:', d['resumo']['alertas'])"

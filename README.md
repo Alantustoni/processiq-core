@@ -45,6 +45,47 @@ alertas = analisar(titulos)
 print(resumo(titulos, alertas)["saude_operacional"])
 ```
 
+## API HTTP
+
+O mesmo motor, atrás de uma API FastAPI, para o painel do ProcessIQ (ou qualquer front) consumir:
+
+```bash
+pip install "processiq-core[api] @ git+https://github.com/Alantustoni/processiq-core"
+uvicorn processiq_core.api:app --reload
+```
+
+Swagger em `http://localhost:8000/docs`. Um único endpoint faz o trabalho:
+
+```bash
+curl -X POST "http://localhost:8000/analisar?hoje=2026-05-10" \
+     -F "arquivo=@examples/contas_a_pagar_exemplo.xlsx"
+```
+
+```json
+{
+  "arquivo": "contas_a_pagar_exemplo.xlsx",
+  "hoje": "2026-05-10",
+  "colunas": { "id": 0, "fornecedor": 1, "documento": 2, "valor": 4, "vencimento": 5, "categoria": 3, "status": 6 },
+  "resumo": { "titulos": 14, "valor_total": "119625.00", "valor_vencido": "14400.00",
+              "alertas": 14, "por_severidade": { "critica": 2, "alta": 5, "media": 3, "baixa": 4 },
+              "saude_operacional": 22 },
+  "alertas": [
+    { "tipo": "titulo_duplicado", "severidade": "critica",
+      "mensagem": "2 lançamentos iguais para 'Mercado Central Ltda': R$ 4,820.00 vencendo em 12/05/2026 (linhas 4, 7)",
+      "titulos": ["1042", "1045"], "linhas": [4, 7], "detalhes": { "valor": "4820.00", "vencimento": "2026-05-12" } }
+  ]
+}
+```
+
+| Método | Rota | O que faz |
+|---|---|---|
+| `POST` | `/analisar` | recebe `.xlsx`/`.csv` (multipart), devolve colunas, resumo e alertas; `?hoje=AAAA-MM-DD` fixa a data; `?incluir_titulos=true` devolve também os títulos lidos |
+| `GET` | `/health` | versão e status, para o orquestrador |
+
+Erros chegam como JSON com código certo: `415` formato não suportado, `413` acima de 10 MB, `422` planilha ilegível (a mensagem do motor vai junto: "cabeçalho não reconhecido: preciso de colunas de fornecedor, valor e vencimento").
+
+Para subir em container: `docker build -t processiq-core . && docker run -p 8000:8000 processiq-core`.
+
 ## O que ele detecta
 
 | Alerta | Regra | Severidade |
@@ -70,7 +111,26 @@ Normalização que acontece antes de qualquer regra (`normalizacao.py`, só bibl
 - **Valor**: `1.234,56`, `R$ 1.234,56`, `1,234.56`, `(100,00)` → `Decimal`.
 - **Data**: `dd/mm/aaaa`, `aaaa-mm-dd`, `datetime` e serial do Excel.
 
-## Estrutura
+## Arquitetura
+
+Duas camadas, com uma fronteira explícita:
+
+```
+                    ┌──────────────────────────────────────────────┐
+  CLI (processiq)   │  motor — processiq_core                       │
+  ───────────────►  │  leitor.py  →  Titulo[]  →  detectores.py    │   só stdlib + openpyxl + rapidfuzz
+                    │  modelo.py (dataclasses)   normalizacao.py   │   sem HTTP, sem framework, sem I/O além do arquivo
+  API (FastAPI)     │                                              │
+  ───────────────►  └──────────────────────────────────────────────┘
+        │
+        └── processiq_core.api: schemas.py (Pydantic) converte dataclasses → JSON na borda;
+            app.py só recebe upload, chama o motor e traduz erro em status HTTP.
+```
+
+- **O motor não sabe que a API existe.** `detectores.py` recebe `list[Titulo]` e devolve `list[Alerta]`; é testado direto, sem subir servidor (58 testes).
+- **A API não contém regra.** Nenhum `if` de negócio em `app.py`; ela valida tamanho e extensão, chama `ler_planilha → analisar → resumo` e converte. Testada com `TestClient` enviando planilhas reais (10 testes).
+- **Mesmo resultado por qualquer porta de entrada.** CLI e API chamam as mesmas funções; o demo roda nas duas no CI.
+- **O painel escala separado.** O front do ProcessIQ só precisa do contrato em `schemas.py` (exposto no OpenAPI); o motor pode mudar por dentro sem quebrar o painel, e vice-versa.
 
 ```
 src/processiq_core/
@@ -78,9 +138,13 @@ src/processiq_core/
 ├── leitor.py         .xlsx/.csv → lista de Titulo + mapa de colunas
 ├── detectores.py     as 7 regras + analisar() + resumo()
 ├── modelo.py         Titulo, Alerta, enums
-└── cli.py            comando `processiq`
-tests/                58 testes (pytest)
+├── cli.py            comando `processiq`
+└── api/
+    ├── app.py        FastAPI: /analisar, /health, tratamento de erro
+    └── schemas.py    contratos Pydantic (AnaliseOut, AlertaOut, Resumo…)
+tests/                68 testes (pytest): 58 do motor + 10 da API
 examples/demo.py      gera planilha sintética e roda o motor; roda no CI como teste de fumaça
+Dockerfile            imagem slim com o extra [api]
 ```
 
 ## Testes
@@ -90,11 +154,11 @@ pip install -e .[dev]
 python -m pytest -q
 ```
 
-CI em Ubuntu e Windows, Python 3.11 a 3.13.
+CI em Ubuntu e Windows, Python 3.11 a 3.13; além do pytest, o workflow sobe a API e envia a planilha de exemplo pelo `curl`.
 
 ## Roadmap
 
-- [ ] API HTTP (FastAPI) para o painel do ProcessIQ consumir
+- [x] API HTTP (FastAPI) para o painel do ProcessIQ consumir
 - [ ] Exportação do relatório em Excel com as linhas marcadas
 - [ ] Sugestão de fornecedor canônico ao unificar duplicados
 - [ ] Leitura de extrato bancário para cruzar pago × previsto (reaproveitando a lógica do [contas-a-pagar-suite](https://github.com/Alantustoni/contas-a-pagar-suite))
