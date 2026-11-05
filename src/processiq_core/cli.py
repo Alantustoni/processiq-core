@@ -12,6 +12,7 @@ from .canonico import de_para
 from .detectores import analisar, resumo
 from .exportacao import exportar_excel
 from .leitor import ErroLeitura, ler_planilha
+from .normalizacao import formatar_moeda
 
 _ICONE = {"critica": "!!", "alta": "! ", "media": "- ", "baixa": ". "}
 
@@ -63,8 +64,8 @@ def main(argv: list[str] | None = None) -> int:
         print()
         return 0
 
-    print(f"{res['titulos']} títulos · total R$ {float(res['valor_total']):,.2f} · "
-          f"vencido R$ {float(res['valor_vencido']):,.2f} · saúde {res['saude_operacional']}/100")
+    print(f"{res['titulos']} títulos · total {formatar_moeda(res['valor_total'])} · "
+          f"vencido {formatar_moeda(res['valor_vencido'])} · saúde {res['saude_operacional']}/100")
     print(f"colunas reconhecidas: {', '.join(f'{k}=col{v + 1}' for k, v in mapa.items())}")
     print()
     for a in alertas:

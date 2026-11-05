@@ -15,7 +15,12 @@ from rapidfuzz import fuzz
 
 from .canonico import sugerir_canonico
 from .modelo import Alerta, Severidade, TipoAlerta, Titulo
-from .normalizacao import raiz_cnpj
+from .normalizacao import formatar_moeda, raiz_cnpj
+
+
+def _vezes(razao) -> str:
+    """Multiplicador com vírgula decimal: 5.0 -> '5,0'."""
+    return f"{float(razao):.1f}".replace(".", ",")
 
 # --------------------------------------------------------------------------- #
 # Fornecedor duplicado
@@ -119,7 +124,7 @@ def detectar_titulos_duplicados(titulos: list[Titulo]) -> list[Alerta]:
             tipo=TipoAlerta.TITULO_DUPLICADO,
             severidade=Severidade.CRITICA,
             mensagem=(f"{len(grupo)} lançamentos iguais para '{grupo[0].fornecedor}': "
-                      f"R$ {valor:,.2f} vencendo em {venc:%d/%m/%Y} (linhas {', '.join(str(t.linha) for t in grupo)})"),
+                      f"{formatar_moeda(valor)} vencendo em {venc:%d/%m/%Y} (linhas {', '.join(str(t.linha) for t in grupo)})"),
             titulos=tuple(t.id for t in grupo),
             linhas=tuple(t.linha for t in grupo),
             detalhes={"valor": str(valor), "vencimento": venc.isoformat()},
@@ -197,8 +202,8 @@ def detectar_valores_suspeitos(titulos: list[Titulo], fator: Decimal = Decimal("
             if t.valor > med * fator:
                 alertas.append(Alerta(
                     tipo=TipoAlerta.VALOR_SUSPEITO, severidade=Severidade.ALTA,
-                    mensagem=(f"'{t.fornecedor}': R$ {t.valor:,.2f} é {float(t.valor / med):.1f}x a mediana "
-                              f"do fornecedor (R$ {med:,.2f}) — confira"),
+                    mensagem=(f"'{t.fornecedor}': {formatar_moeda(t.valor)} é {_vezes(t.valor / med)}x a mediana "
+                              f"do fornecedor ({formatar_moeda(med)}) — confira"),
                     titulos=(t.id,), linhas=(t.linha,),
                     detalhes={"valor": str(t.valor), "mediana": str(med.quantize(Decimal('0.01'))), "motivo": "outlier"},
                 ))

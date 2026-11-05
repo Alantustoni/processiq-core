@@ -23,14 +23,14 @@ processiq examples/contas_a_pagar_exemplo.xlsx --hoje 2026-05-10
 Com a sua própria planilha: `processiq contas_a_pagar.xlsx`. Para um relatório que o financeiro abre e já sabe onde olhar: `processiq contas_a_pagar.xlsx --excel relatorio.xlsx`. Para a tabela de unificação de fornecedores em CSV: `--de-para unificacao.csv`.
 
 ```
-14 títulos · total R$ 119,625.00 · vencido R$ 14,400.00 · saúde 22/100
+14 títulos · total R$ 119.625,00 · vencido R$ 14.400,00 · saúde 22/100
 colunas reconhecidas: id=col1, fornecedor=col2, documento=col3, valor=col5, vencimento=col6, categoria=col4, status=col7
 
-!! [titulo_duplicado] 2 lançamentos iguais para 'Mercado Central Ltda': R$ 4,820.00 vencendo em 12/05/2026 (linhas 4, 7)
+!! [titulo_duplicado] 2 lançamentos iguais para 'Mercado Central Ltda': R$ 4.820,00 vencendo em 12/05/2026 (linhas 4, 7)
 !! [vencido] 'Transportes Fictícios S/A' venceu há 45 dia(s) (26/03/2026) e não consta como pago
 !  [fornecedor_duplicado] CNPJ raiz 90100200 aparece com 2 nomes diferentes: MERC CENTRAL ALIMENTOS | MERCADO CENTRAL — sugestão: manter 'Mercado Central Ltda'
 !  [fornecedor_duplicado] CNPJ raiz 90100500 aparece com 2 nomes diferentes: SERVICOS DEMONSTRACAO | TRANSPORTES FICTICIOS — nomes sem relação: confira o CNPJ antes de unificar
-!  [valor_suspeito] 'Distribuidora Alpha': R$ 61,500.00 é 5.0x a mediana do fornecedor (R$ 12,200.00) — confira
+!  [valor_suspeito] 'Distribuidora Alpha': R$ 61.500,00 é 5,0x a mediana do fornecedor (R$ 12.200,00) — confira
 -  [documento_invalido] CNPJ/CPF inválido na linha 14 ('12345678000100') para 'Peças Exemplo Eireli'
 ```
 
@@ -76,7 +76,7 @@ curl -X POST "http://localhost:8000/analisar?hoje=2026-05-10" \
               "saude_operacional": 22 },
   "alertas": [
     { "tipo": "titulo_duplicado", "severidade": "critica",
-      "mensagem": "2 lançamentos iguais para 'Mercado Central Ltda': R$ 4,820.00 vencendo em 12/05/2026 (linhas 4, 7)",
+      "mensagem": "2 lançamentos iguais para 'Mercado Central Ltda': R$ 4.820,00 vencendo em 12/05/2026 (linhas 4, 7)",
       "titulos": ["1042", "1045"], "linhas": [4, 7], "detalhes": { "valor": "4820.00", "vencimento": "2026-05-12" } }
   ],
   "unificacao": [

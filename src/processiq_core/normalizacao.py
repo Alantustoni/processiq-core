@@ -110,6 +110,14 @@ def normalizar_nome(nome: str | None) -> str:
     return " ".join(tokens)
 
 
+def formatar_moeda(valor) -> str:
+    """Valor em reais no formato brasileiro: 1234.5 -> 'R$ 1.234,50'."""
+    numero = Decimal(str(valor))
+    texto = f"{abs(numero):,.2f}"                  # 1,234.50
+    texto = texto.replace(",", "_").replace(".", ",").replace("_", ".")
+    return f"{'-' if numero < 0 else ''}R$ {texto}"
+
+
 def parse_valor(valor) -> Decimal | None:
     """Aceita 1234.56, '1.234,56', 'R$ 1.234,56', '1234,56', '(100,00)' (negativo)."""
     if valor is None or valor == "":

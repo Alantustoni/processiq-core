@@ -15,6 +15,7 @@ from pathlib import Path
 from openpyxl import Workbook
 
 from processiq_core import analisar, ler_planilha, resumo
+from processiq_core.normalizacao import formatar_moeda
 
 HOJE = date(2026, 5, 10)
 SAIDA = Path(__file__).with_name("contas_a_pagar_exemplo.xlsx")
@@ -58,8 +59,8 @@ def main() -> int:
 
     print(f"planilha: {SAIDA.name}")
     print(f"colunas reconhecidas: {mapa}")
-    print(f"{r['titulos']} títulos · total R$ {float(r['valor_total']):,.2f} · "
-          f"vencido R$ {float(r['valor_vencido']):,.2f} · saúde {r['saude_operacional']}/100\n")
+    print(f"{r['titulos']} títulos · total {formatar_moeda(r['valor_total'])} · "
+          f"vencido {formatar_moeda(r['valor_vencido'])} · saúde {r['saude_operacional']}/100\n")
     for a in alertas:
         print(f"[{a.severidade.value:>7}] {a.tipo.value:<22} {a.mensagem}")
 

@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 
 from processiq_core.normalizacao import (
-    cnpj_valido, cpf_valido, normalizar_documento, normalizar_nome, parse_data, parse_valor, raiz_cnpj,
+    cnpj_valido, cpf_valido, formatar_moeda, normalizar_documento, normalizar_nome, parse_data, parse_valor, raiz_cnpj,
 )
 
 # CNPJs sintéticos com dígito verificador válido
@@ -94,3 +94,14 @@ def test_parse_valor(entrada, esperado):
 ])
 def test_parse_data(entrada, esperado):
     assert parse_data(entrada) == esperado
+
+
+@pytest.mark.parametrize("entrada,esperado", [
+    (Decimal("119625"), "R$ 119.625,00"),
+    (Decimal("4820.5"), "R$ 4.820,50"),
+    (0, "R$ 0,00"),
+    (1234567.891, "R$ 1.234.567,89"),
+    (Decimal("-150"), "-R$ 150,00"),
+])
+def test_formatar_moeda_padrao_brasileiro(entrada, esperado):
+    assert formatar_moeda(entrada) == esperado
